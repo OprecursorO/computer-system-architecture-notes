@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IEEE 754 binary32 explorer</title>
+<style>
+:root{font:16px system-ui, -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Noto Sans SC",sans-serif;color:#172033;background:#f7f9fc}body{max-width:780px;margin:0 auto;padding:18px}main{background:#fff;border:1px solid #d9e2ef;border-radius:12px;padding:18px}h1{font-size:1.35rem;margin-top:0}input{font:inherit;padding:8px;width:12rem}button{font:inherit;padding:8px 12px;margin-left:6px;border:1px solid #2563eb;border-radius:7px;background:#eff6ff;color:#1d4ed8;cursor:pointer}.fields{display:grid;grid-template-columns:1fr 2fr 3fr;gap:6px;margin-top:18px}.field{padding:12px;border-radius:7px;text-align:center;border:1px solid #93c5fd;background:#eff6ff;overflow-wrap:anywhere}.field small{display:block;color:#475569;margin-top:6px}.card{margin-top:14px;padding:12px;background:#f1f5f9;border-radius:8px}.note{font-size:.9rem;color:#526071}@media(max-width:520px){input{width:9rem}.fields{grid-template-columns:1fr}}
+</style>
+<main>
+<h1>互动：一个数怎样拆成 binary32 的三部分？</h1>
+<p>输入一个十进制数，观察 IEEE 754 binary32 的 sign、exponent 和 fraction 字段。重点看：字段不是把十进制数字直接切三段，而是对二进制科学计数法重新编码。</p>
+<label for="number">十进制数：</label><input id="number" value="5.5" inputmode="decimal"><button id="update">解析</button>
+<div class="fields"><div class="field" id="sign"></div><div class="field" id="exp"></div><div class="field" id="frac"></div></div>
+<div class="card" id="result"></div>
+<p class="note">这是浏览器 binary32 编码的教学观察器；特殊值、subnormal 和舍入边界应回到正文的 IEEE 754 规则阅读。结果是确定的，但不能替代完整的浮点硬件实现。</p>
+</main>
+<script>
+function parse(){const input=document.getElementById('number');const x=Number(input.value);if(Number.isNaN(x)){document.getElementById('result').textContent='请输入有效的十进制数，例如 5.5、0.1 或 Infinity。';return}const buffer=new ArrayBuffer(4),view=new DataView(buffer);view.setFloat32(0,x,false);const bits=view.getUint32(0,false).toString(2).padStart(32,'0');const sign=bits.slice(0,1),exponent=bits.slice(1,9),fraction=bits.slice(9),expValue=parseInt(exponent,2);document.getElementById('sign').innerHTML='sign<small>'+sign+'</small>';document.getElementById('exp').innerHTML='exponent<small>'+exponent+'（字段值 '+expValue+'）</small>';document.getElementById('frac').innerHTML='fraction<small>'+fraction+'</small>';let kind='normal number';if(expValue===255)kind=fraction==='00000000000000000000000'?'infinity':'NaN';else if(expValue===0)kind='zero or subnormal';document.getElementById('result').textContent='binary32 十六进制：0x'+view.getUint32(0,false).toString(16).padStart(8,'0')+'；分类：'+kind+'；浏览器保存值：'+view.getFloat32(0,false)}document.getElementById('update').onclick=parse;document.getElementById('number').addEventListener('keydown',event=>{if(event.key==='Enter')parse()});parse();
+</script>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
+  <title id="title">SERDES、GPU 与处理器系统的关系</title>
+  <desc id="desc">上方展示 SERDES 把并行数据串行化并在接收端恢复；下方展示 GPU 的线程块进入 SM，再通过 HBM 和高速互连与其他处理器通信。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0 0L12 6L0 12Z" fill="#344054"/></marker>
+    <linearGradient id="blue" x1="0" x2="1"><stop stop-color="#dbeafe"/><stop offset="1" stop-color="#bfdbfe"/></linearGradient>
+    <linearGradient id="green" x1="0" x2="1"><stop stop-color="#dcfce7"/><stop offset="1" stop-color="#bbf7d0"/></linearGradient>
+    <linearGradient id="orange" x1="0" x2="1"><stop stop-color="#ffedd5"/><stop offset="1" stop-color="#fed7aa"/></linearGradient>
+  </defs>
+  <rect width="1200" height="560" fill="#f8fafc"/>
+  <g font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif" fill="#172b4d">
+    <text x="600" y="34" text-anchor="middle" font-size="24" font-weight="700">从 processor datapath 到多芯片系统</text>
+    <text x="28" y="78" font-size="19" font-weight="700">A. SERDES：把“很多根线”变成“高速时序流”</text>
+    <g stroke="#344054" stroke-width="2" marker-end="url(#arrow)">
+      <path d="M188 148H268"/><path d="M426 148H506"/><path d="M674 148H754"/><path d="M922 148H1000"/>
+    </g>
+    <g stroke="#344054" stroke-width="2">
+      <rect x="28" y="105" width="160" height="86" rx="12" fill="url(#blue)"/><rect x="268" y="105" width="158" height="86" rx="12" fill="url(#green)"/><rect x="506" y="105" width="168" height="86" rx="12" fill="url(#orange)"/><rect x="754" y="105" width="168" height="86" rx="12" fill="url(#green)"/><rect x="1000" y="105" width="170" height="86" rx="12" fill="url(#blue)"/>
+    </g>
+    <g text-anchor="middle" font-size="16"><text x="108" y="133" font-weight="700">并行输入</text><text x="108" y="160">10110010</text><text x="347" y="133" font-weight="700">Serializer</text><text x="347" y="160">并行 → 串行</text><text x="590" y="133" font-weight="700">Channel</text><text x="590" y="160">PCB / cable / link</text><text x="838" y="133" font-weight="700">Deserializer</text><text x="838" y="160">串行 → 并行</text><text x="1085" y="133" font-weight="700">并行输出</text><text x="1085" y="160">10110010</text></g>
+    <text x="600" y="220" text-anchor="middle" font-size="14" fill="#475467">物理层还要处理 clock/data recovery、equalization、jitter、lane bonding 与 training</text>
+    <text x="28" y="275" font-size="19" font-weight="700">B. GPU：把“相似的小任务”分组交给许多执行单元</text>
+    <g stroke="#344054" stroke-width="2" marker-end="url(#arrow)"><path d="M178 380H258"/><path d="M418 380H498"/><path d="M658 380H738"/><path d="M898 380H978"/></g>
+    <g stroke="#344054" stroke-width="2"><rect x="28" y="333" width="150" height="94" rx="12" fill="url(#blue)"/><rect x="258" y="333" width="160" height="94" rx="12" fill="url(#green)"/><rect x="498" y="333" width="160" height="94" rx="12" fill="url(#orange)"/><rect x="738" y="333" width="160" height="94" rx="12" fill="url(#green)"/><rect x="978" y="333" width="192" height="94" rx="12" fill="url(#blue)"/></g>
+    <g text-anchor="middle" font-size="16"><text x="103" y="362" font-weight="700">Grid</text><text x="103" y="389">很多相同任务</text><text x="338" y="362" font-weight="700">Block</text><text x="338" y="389">合作的一组 threads</text><text x="578" y="362" font-weight="700">Warp</text><text x="578" y="389">执行分组</text><text x="818" y="362" font-weight="700">SM</text><text x="818" y="389">调度与执行资源</text><text x="1074" y="362" font-weight="700">HBM / Interconnect</text><text x="1074" y="389">供数与跨芯片通信</text></g>
+    <path d="M818 428V490H578V428" fill="none" stroke="#344054" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="698" y="516" text-anchor="middle" font-size="16" fill="#475467">GPU 速度取决于计算、memory movement 和 communication 是否同时跟得上</text>
+  </g>
+</svg>

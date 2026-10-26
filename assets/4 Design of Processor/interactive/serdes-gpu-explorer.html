@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SERDES 与 GPU 系统探索器</title>
+  <style>
+    :root { color-scheme: light; --ink:#172b4d; --muted:#475467; --line:#d0d5dd; --blue:#2563eb; --green:#16a34a; --orange:#ea580c; --bg:#f8fafc; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 Arial, "PingFang SC", "Microsoft YaHei", sans-serif; }
+    main { max-width:1100px; margin:0 auto; padding:28px 20px 44px; }
+    h1 { margin:0 0 6px; font-size:clamp(26px,4vw,38px); } h2 { margin:28px 0 10px; font-size:23px; } p { margin:7px 0; }
+    .intro { color:var(--muted); max-width:850px; }
+    .panel { background:white; border:1px solid var(--line); border-radius:10px; padding:18px; margin-top:18px; box-shadow:0 2px 8px #172b4d0d; }
+    .controls { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; }
+    label { display:block; font-weight:700; } input[type=range] { width:100%; accent-color:var(--blue); } output { color:var(--blue); font-variant-numeric:tabular-nums; }
+    .flow { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; align-items:center; margin-top:18px; }
+    .box { min-height:86px; display:grid; place-items:center; text-align:center; padding:10px; border:2px solid #344054; border-radius:10px; font-weight:700; }
+    .box small { display:block; font-weight:400; color:var(--muted); } .parallel{background:#dbeafe}.ser{background:#dcfce7}.channel{background:#ffedd5}
+    .arrow { text-align:center; font-size:24px; color:var(--muted); }
+    .bars { display:grid; gap:12px; margin-top:16px; } .bar-row { display:grid; grid-template-columns:150px 1fr 90px; gap:10px; align-items:center; }
+    .track { height:24px; background:#eaecf0; border-radius:5px; overflow:hidden; } .fill { height:100%; width:0; transition:width .25s ease; }
+    .compute { background:var(--green); }.communication { background:var(--orange); }
+    .status { margin-top:16px; padding:12px 14px; border-left:4px solid var(--blue); background:#eff6ff; }
+    table { border-collapse:collapse; width:100%; margin-top:12px; } th,td { padding:8px; border:1px solid var(--line); text-align:left; vertical-align:top; } th { background:#f2f4f7; }
+    .note { color:var(--muted); font-size:14px; }
+    @media (max-width:700px) { .flow { grid-template-columns:1fr; } .arrow { transform:rotate(90deg); } .bar-row { grid-template-columns:110px 1fr 72px; font-size:14px; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>SERDES × GPU 系统探索器</h1>
+  <p class="intro">这是一个离线教学模型。先看上方的数据路径，再调节 GPU 数量、单 GPU 计算能力和互连带宽，观察瓶颈如何变化。</p>
+
+  <section class="panel" aria-labelledby="serdes-title">
+    <h2 id="serdes-title">1. SERDES 在做什么？</h2>
+    <p>改变“每次并行输入多少 bit”，观察它如何变成一串按时间发送的 bit，再在接收端恢复。这里把协议细节抽象掉，只保留物理层的核心动作。</p>
+    <div class="controls">
+      <div><label for="word">并行字宽：<output id="wordOut">8 bit</output></label><input id="word" type="range" min="4" max="16" step="4" value="8"></div>
+      <div><label for="rate">串行 lane 速率：<output id="rateOut">16 Gb/s</output></label><input id="rate" type="range" min="4" max="32" step="4" value="16"></div>
+    </div>
+    <div class="flow" aria-live="polite">
+      <div class="box parallel">并行输入<small id="inputBits">10110010</small></div><div class="arrow" aria-hidden="true">→</div>
+      <div class="box ser">Serializer<small>一次取一个 bit</small></div><div class="arrow" aria-hidden="true">→</div>
+      <div class="box channel">Serial channel<small id="serialInfo">16 Gb/s · 1 lane</small></div>
+    </div>
+    <p class="status" id="serdesStatus">8 bit 的字在一条 lane 上分 8 个时间片发送；接收端靠时钟恢复与采样把它重新拼回。</p>
+  </section>
+
+  <section class="panel" aria-labelledby="system-title">
+    <h2 id="system-title">2. GPU 数量增加后，系统一定线性变快吗？</h2>
+    <p>模型假设任务可以并行，但每个 GPU 都要搬运数据。柱子只用于比较相对时间：数值越小越好；实际芯片还会受到 cache、同步、协议、调度和负载不均衡影响。</p>
+    <div class="controls">
+      <div><label for="gpus">GPU 数量：<output id="gpusOut">1</output></label><input id="gpus" type="range" min="1" max="8" step="1" value="1"></div>
+      <div><label for="compute">单 GPU 计算能力：<output id="computeOut">100 TFLOP/s</output></label><input id="compute" type="range" min="50" max="400" step="50" value="100"></div>
+      <div><label for="link">互连带宽：<output id="linkOut">100 GB/s</output></label><input id="link" type="range" min="25" max="400" step="25" value="100"></div>
+      <div><label for="reuse">数据复用倍数：<output id="reuseOut">4×</output></label><input id="reuse" type="range" min="1" max="16" step="1" value="4"></div>
+      <button id="reset" type="button">恢复默认参数</button>
+    </div>
+    <div class="bars" aria-live="polite">
+      <div class="bar-row"><span>计算时间</span><div class="track"><div id="computeBar" class="fill compute"></div></div><strong id="computeValue">--</strong></div>
+      <div class="bar-row"><span>通信时间</span><div class="track"><div id="communicationBar" class="fill communication"></div></div><strong id="communicationValue">--</strong></div>
+    </div>
+    <p class="status" id="systemStatus">--</p>
+    <table><thead><tr><th>观察</th><th>它说明什么</th></tr></thead><tbody><tr><td>增加 GPU 后计算柱缩短</td><td>可并行的计算工作被分摊到更多 SM；这是 throughput 侧的收益。</td></tr><tr><td>提高数据复用后通信柱缩短</td><td>同一份数据被更多计算使用，平均每次计算需要跨互连搬运的字节减少。</td></tr><tr><td>互连变慢或 GPU 太多</td><td>通信成为关键路径；更多计算单元可能在等待数据，不能期待线性加速。</td></tr></tbody></table>
+  </section>
+
+  <p class="note">模型性质：这是教学重绘与理想化模拟，不是任何具体 GPU、NVLink、PCIe 或 SERDES PHY 的性能承诺。SERDES 本身是高速物理层技术；PCIe、CXL、NVLink 等还包含更高层的协议、链路管理与软件栈。</p>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  function updateSerdes() {
+    const word = Number($('word').value); const rate = Number($('rate').value);
+    $('wordOut').textContent = word + ' bit'; $('rateOut').textContent = rate + ' Gb/s';
+    const bits = ('1011001010110010').slice(0, word);
+    $('inputBits').textContent = bits; $('serialInfo').textContent = rate + ' Gb/s · 1 lane';
+    $('serdesStatus').textContent = word + ' bit 的字在一条 lane 上分 ' + word + ' 个时间片发送；速率越高，单位时间能发送的字越多，但信号完整性与时钟恢复要求也会更高。';
+  }
+  function updateSystem() {
+    const gpus = Number($('gpus').value); const compute = Number($('compute').value); const link = Number($('link').value); const reuse = Number($('reuse').value);
+    $('gpusOut').textContent = gpus; $('computeOut').textContent = compute + ' TFLOP/s'; $('linkOut').textContent = link + ' GB/s'; $('reuseOut').textContent = reuse + '×';
+    const computeTime = 100 / (gpus * compute / 100); const communicationTime = 100 / (link * reuse / 100);
+    const maxTime = Math.max(computeTime, communicationTime); $('computeBar').style.width = (computeTime / maxTime * 100) + '%'; $('communicationBar').style.width = (communicationTime / maxTime * 100) + '%';
+    $('computeValue').textContent = computeTime.toFixed(1) + ' 相对单位'; $('communicationValue').textContent = communicationTime.toFixed(1) + ' 相对单位';
+    const bottleneck = computeTime >= communicationTime ? '计算' : '通信'; const advice = bottleneck === '计算' ? '可以先考虑增加并行度、提高计算利用率或减少依赖等待。' : '可以先考虑提高互连带宽、增加数据复用或减少同步与搬运。';
+    $('systemStatus').textContent = '当前关键路径：' + bottleneck + '。' + advice + ' 这就是“更多 GPU 不一定线性加速”的原因。';
+  }
+  ['word','rate'].forEach(id => $(id).addEventListener('input', updateSerdes)); ['gpus','compute','link','reuse'].forEach(id => $(id).addEventListener('input', updateSystem)); $('reset').addEventListener('click', () => { $('word').value=8; $('rate').value=16; $('gpus').value=1; $('compute').value=100; $('link').value=100; $('reuse').value=4; updateSerdes(); updateSystem(); }); updateSerdes(); updateSystem();
+</script>
+</body>
+</html>

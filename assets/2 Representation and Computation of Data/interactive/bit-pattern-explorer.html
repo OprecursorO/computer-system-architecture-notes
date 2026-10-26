@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bit pattern explorer</title>
+<style>:root{font:16px system-ui, -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Noto Sans SC",sans-serif;color:#172033;background:#f7f9fc}body{max-width:760px;margin:0 auto;padding:18px}main{background:#fff;border:1px solid #d9e2ef;border-radius:12px;padding:18px}h1{font-size:1.35rem;margin-top:0}.bits{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin:16px 0}.bits button{font:700 1.1rem ui-monospace,monospace;padding:12px 4px;border:1px solid #93c5fd;background:#eff6ff;border-radius:7px;cursor:pointer}.bits button:focus{outline:3px solid #fbbf24}.result{display:grid;grid-template-columns:1fr 1fr;gap:10px}.card{padding:12px;border-radius:8px;background:#f1f5f9}.value{font-size:1.4rem;font-weight:700;color:#1d4ed8}.note{font-size:.9rem;color:#526071}@media(max-width:500px){.result{grid-template-columns:1fr}}
+</style>
+<main><h1>互动：同一组 bits，为什么能读成两个数？</h1><p>点击任意 bit 翻转它。观察 unsigned 与 8-bit two's complement 的解释如何同时改变。这里展示的是“解释规则”变化，不是硬件存了两份数据。</p><div class="bits" id="bits" aria-label="8-bit pattern"></div><div class="result"><div class="card"><div>unsigned</div><div class="value" id="unsigned"></div></div><div class="card"><div>two's complement signed</div><div class="value" id="signed"></div></div></div><p class="note">教学范围：固定 8 bits。signed 的范围是 -128 到 127；unsigned 的范围是 0 到 255。</p></main>
+<script>
+(() => {
+  const bits=[1,1,1,1,1,1,1,1]; const wrap=document.getElementById('bits'); const buttons=[];
+  function render(){const unsigned=bits.reduce((value,bit)=>value*2+bit,0);const signed=bits[0]?unsigned-256:unsigned;buttons.forEach((button,index)=>{button.textContent=bits[index]});document.getElementById('unsigned').textContent=unsigned;document.getElementById('signed').textContent=signed}
+  bits.forEach((bit,index)=>{const button=document.createElement('button');button.type='button';button.setAttribute('aria-label','翻转第 '+(index+1)+' 位');button.addEventListener('click',()=>{bits[index]^=1;render()});buttons.push(button);wrap.appendChild(button)});
+  const reset=document.createElement('button');reset.type='button';reset.textContent='恢复 1111 1111';reset.addEventListener('click',()=>{bits.fill(1);render()});wrap.insertAdjacentElement('afterend',reset);render();
+})();
+</script>

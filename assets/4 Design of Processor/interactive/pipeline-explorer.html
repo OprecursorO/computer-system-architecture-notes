@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline Explorer</title>
+<style>
+:root{font:16px/1.55 system-ui,-apple-system,"Segoe UI","PingFang SC","Noto Sans CJK SC",sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}body{margin:0;padding:18px}main{max-width:900px;margin:auto;background:#fff;border:1px solid #d8e0eb;border-radius:14px;padding:22px;box-shadow:0 8px 24px #172b4d12}h1{margin:0 0 6px;font-size:1.45rem}h2{font-size:1rem;margin:22px 0 8px;color:#344054}.intro,.note{color:#526071}.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:18px 0 8px}button{font:inherit;border:1px solid #2563eb;border-radius:8px;padding:8px 13px;background:#eff6ff;color:#174ea6;cursor:pointer}button:hover,button:focus{background:#dbeafe;outline:3px solid #bfdbfe}button:disabled{opacity:.45;cursor:not-allowed}.cycle{font-weight:700;margin-left:auto}.progress{height:8px;background:#e4e7ec;border-radius:99px;overflow:hidden}.progress span{display:block;height:100%;background:#2563eb;transition:width .2s}.stage{overflow:auto}table{width:100%;min-width:670px;border-collapse:collapse;margin-top:16px}caption{text-align:left;padding:8px 0;color:#526071;font-size:.9rem}th,td{border:1px solid #dbe3ef;padding:9px 7px;text-align:center}thead th{background:#eef5ff;color:#174ea6}tbody th{text-align:left;white-space:nowrap;background:#fafbfc}.active{background:#dbeafe;font-weight:700}.stall{background:#ffe4e6;color:#9f1239;font-weight:700}.bubble{background:#fff1d6;color:#9a4d00;font-weight:700}.explain{margin-top:16px;padding:14px;border-left:4px solid #2563eb;background:#f5f8ff}.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.9rem;color:#526071}.swatch{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}.blue{background:#dbeafe}.red{background:#ffe4e6}.yellow{background:#fff1d6}@media(max-width:560px){main{padding:16px}.cycle{width:100%;margin-left:0}}
+</style>
+</head>
+<body>
+<main>
+<h1>Pipeline Explorer：依赖为什么造成停顿？</h1>
+<p class="intro">先看 cycle 0 的空表，再逐拍推进。你要观察的核心不是“表格动了”，而是：<strong>load 的数据什么时候产生，下一条 add 什么时候才可以使用它？</strong></p>
+<div class="controls"><button id="back" type="button">上一个 cycle</button><button id="next" type="button">下一个 cycle</button><button id="reset" type="button">重置</button><span class="cycle" id="cycle" aria-live="polite"></span></div>
+<div class="progress" aria-label="流水线进度"><span id="progress"></span></div>
+<div class="stage"><table><caption>固定五级 pipeline：IF 取指、ID 译码、EX 执行、MEM 访存、WB 写回</caption><thead><tr><th scope="col">instruction</th><th scope="col">IF</th><th scope="col">ID</th><th scope="col">EX</th><th scope="col">MEM</th><th scope="col">WB</th></tr></thead><tbody id="grid"></tbody></table></div>
+<div class="legend"><span><i class="swatch blue"></i>正常执行</span><span><i class="swatch red"></i>stall/hold</span><span><i class="swatch yellow"></i>bubble</span></div>
+<div class="explain" id="message" aria-live="polite"></div>
+<h2>读图方法</h2>
+<p class="note">同一列表示同一个 cycle，不同列表示不同 stage。第 4 拍中，<code>ld</code> 还在访存，<code>add</code> 需要它的结果，因此 add 留在 ID，后面的 sub 也不能越过它；EX 空出来的那个位置就是 bubble。</p>
+</main>
+<script>
+(() => {
+  const stages=['IF','ID','EX','MEM','WB'];
+  const rows=[
+    ['ld x5, 0(x6)',{1:{IF:'IF'},2:{ID:'ID'},3:{EX:'EX'},4:{MEM:'MEM'},5:{WB:'WB'}}],
+    ['add x7, x5, x8',{2:{IF:'IF'},3:{ID:'ID'},4:{ID:'ID · stall'},5:{EX:'EX'},6:{MEM:'MEM'},7:{WB:'WB'}}],
+    ['sub x9, x7, x10',{3:{IF:'IF'},4:{IF:'IF · hold'},5:{ID:'ID'},6:{EX:'EX'},7:{MEM:'MEM'},8:{WB:'WB'}}]
+  ];
+  const explanations={0:'现在还没有推进时钟。按“下一个 cycle”，观察第一条 ld 进入 IF。',1:'cycle 1：ld 正在取指。PC 提供指令地址，其他指令还没有进入流水线。',2:'cycle 2：ld 进入 ID，同时下一条 add 进入 IF。流水线开始重叠工作。',3:'cycle 3：ld 在 EX 计算地址，add 在 ID 读取寄存器，sub 进入 IF。',4:'cycle 4：load 的数据要到 MEM 访问完成后才出现。add 不能提前在 EX 使用 x5，所以 ID stall；sub 也必须 hold，EX 插入 bubble。',5:'cycle 5：ld 写回 x5，add 终于可以进入 EX。停顿只增加了等待，不改变程序结果。',6:'cycle 6：add 在 MEM，sub 在 EX。前面的依赖已经被解除，流水线重新向前推进。',7:'cycle 7：add 写回 x7，sub 在 MEM。',8:'cycle 8：sub 写回，三条指令全部完成。流水线提高吞吐量，但没有消除数据依赖。'};
+  let cycle=0;
+  const byId=id=>document.getElementById(id);
+  function render(){
+    byId('cycle').textContent='cycle '+cycle+' / 8';
+    byId('progress').style.width=(cycle/8*100)+'%';
+    byId('back').disabled=cycle===0; byId('next').disabled=cycle===8;
+    const body=byId('grid'); body.replaceChildren();
+    rows.forEach(([instruction,timeline])=>{
+      const tr=document.createElement('tr'); const name=document.createElement('th'); name.scope='row'; name.textContent=instruction; tr.appendChild(name);
+      stages.forEach(stage=>{const td=document.createElement('td'); const entry=timeline[cycle]?.[stage]||''; td.textContent=entry; if(entry) td.className=entry.includes('stall')||entry.includes('hold')?'stall':'active'; tr.appendChild(td)}); body.appendChild(tr);
+    });
+    const tr=document.createElement('tr'); const name=document.createElement('th'); name.scope='row'; name.textContent='pipeline slot'; tr.appendChild(name);
+    stages.forEach(stage=>{const td=document.createElement('td'); if(cycle===4&&stage==='EX'){td.textContent='bubble';td.className='bubble'} tr.appendChild(td)}); body.appendChild(tr);
+    byId('message').textContent=explanations[cycle];
+  }
+  byId('back').addEventListener('click',()=>{if(cycle>0){cycle-=1;render()}});
+  byId('next').addEventListener('click',()=>{if(cycle<8){cycle+=1;render()}});
+  byId('reset').addEventListener('click',()=>{cycle=0;render()});
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 430" role="img" aria-labelledby="title desc">
+  <title id="title">GPU 与 SERDES 连接的多加速器系统</title>
+  <desc id="desc">两个 GPU 通过高速互连连接，CPU 和 accelerator 通过 PCIe 或其他链路交换数据，链路底层使用 SERDES。</desc>
+  <defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0 0L12 6L0 12Z" fill="#344054"/></marker></defs>
+  <rect width="1100" height="430" fill="#f8fafc"/>
+  <g font-family="Arial, 'PingFang SC', sans-serif" fill="#172b4d">
+    <text x="550" y="32" text-anchor="middle" font-size="24" font-weight="700">GPU 的算力必须通过互连“拿到数据”</text>
+    <g stroke="#344054" stroke-width="2"><rect x="55" y="90" width="190" height="100" rx="14" fill="#dbeafe"/><rect x="455" y="90" width="190" height="100" rx="14" fill="#dcfce7"/><rect x="855" y="90" width="190" height="100" rx="14" fill="#dbeafe"/><rect x="420" y="290" width="260" height="80" rx="14" fill="#ffedd5"/></g>
+    <g text-anchor="middle"><text x="150" y="125" font-size="20" font-weight="700">CPU</text><text x="150" y="153" font-size="15">控制、输入与调度</text><text x="550" y="125" font-size="20" font-weight="700">GPU 0</text><text x="550" y="153" font-size="15">SM / HBM / cache</text><text x="950" y="125" font-size="20" font-weight="700">GPU 1 / 加速器</text><text x="950" y="153" font-size="15">另一组计算资源</text><text x="550" y="323" font-size="19" font-weight="700">SERDES physical layer</text><text x="550" y="348" font-size="14">高速串行收发、均衡、时钟恢复</text></g>
+    <g stroke="#344054" stroke-width="3" marker-end="url(#arrow)"><path d="M245 140H445"/><path d="M645 140H845"/><path d="M550 190V280"/><path d="M455 280L245 190"/><path d="M645 280L855 190"/></g>
+    <g text-anchor="middle" font-size="15" fill="#475467"><text x="345" y="125">PCIe / CXL / 互连</text><text x="745" y="125">NVLink 等高速互连</text><text x="350" y="235">数据搬运</text><text x="750" y="235">数据搬运</text><text x="550" y="410">计算吞吐很高时，瓶颈可能转移到带宽、延迟或通信同步</text></g>
+  </g>
+</svg>

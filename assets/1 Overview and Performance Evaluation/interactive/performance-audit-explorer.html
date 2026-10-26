@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Performance audit explorer</title>
+  <style>
+    :root { color-scheme: light; --ink:#172b4d; --muted:#475467; --line:#d0d5dd; --blue:#2563eb; --orange:#ea580c; --green:#16a34a; --bg:#f8fafc; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; }
+    main { max-width:980px; margin:auto; padding:24px 18px 40px; }
+    h1 { margin:0 0 6px; font-size:clamp(25px,4vw,36px); } h2 { margin:24px 0 8px; font-size:22px; }
+    .intro,.note { color:var(--muted); } .panel { background:white; border:1px solid var(--line); border-radius:10px; padding:16px; margin-top:16px; }
+    .controls { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+    label { display:block; font-weight:700; } input { width:100%; accent-color:var(--blue); } output { color:var(--blue); font-variant-numeric:tabular-nums; }
+    .bars { display:grid; gap:12px; margin-top:18px; } .row { display:grid; grid-template-columns:150px 1fr 96px; gap:10px; align-items:center; }
+    .track { height:24px; background:#eaecf0; border-radius:5px; overflow:hidden; } .fill { height:100%; transition:width .2s ease; } .base { background:var(--blue); } .overhead { background:var(--orange); }
+    .status { margin:16px 0 0; padding:12px 14px; background:#eff6ff; border-left:4px solid var(--blue); }
+    table { width:100%; border-collapse:collapse; margin-top:16px; } th,td { border:1px solid var(--line); padding:8px; text-align:left; vertical-align:top; } th { background:#f2f4f7; }
+    @media(max-width:640px) { .row { grid-template-columns:110px 1fr 82px; font-size:14px; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Performance audit explorer</h1>
+  <p class="intro">这是一个理想化教学模型。先改变 CPU time 公式中的因素，再打开并行因素，观察“更快的时钟”为什么不一定解决真实瓶颈。</p>
+  <section class="panel" aria-labelledby="cpu-title">
+    <h2 id="cpu-title">1. CPU time：IC × CPI × Clock time</h2>
+    <div class="controls">
+      <div><label for="ic">Instruction Count：<output id="icOut">1.0 billion</output></label><input id="ic" type="range" min="0.5" max="4" step="0.5" value="1"></div>
+      <div><label for="cpi">CPI：<output id="cpiOut">1.0</output></label><input id="cpi" type="range" min="0.5" max="4" step="0.5" value="1"></div>
+      <div><label for="clock">Clock rate：<output id="clockOut">3.0 GHz</output></label><input id="clock" type="range" min="1" max="5" step="0.5" value="3"></div>
+      <button id="reset" type="button">恢复默认参数</button>
+    </div>
+    <div class="bars" aria-live="polite"><div class="row"><span>CPU time</span><div class="track"><div id="cpuBar" class="fill base"></div></div><strong id="cpuValue">--</strong></div></div>
+    <p class="status" id="cpuStatus">--</p>
+  </section>
+  <section class="panel" aria-labelledby="parallel-title">
+    <h2 id="parallel-title">2. Parallelism：为什么增加处理器后收益会变小？</h2>
+    <div class="controls">
+      <div><label for="serial">Serial fraction：<output id="serialOut">10%</output></label><input id="serial" type="range" min="0" max="80" step="5" value="10"></div>
+      <div><label for="processors">Processor count：<output id="processorsOut">8</output></label><input id="processors" type="range" min="1" max="64" step="1" value="8"></div>
+      <div><label for="communication">Communication overhead：<output id="communicationOut">0%</output></label><input id="communication" type="range" min="0" max="40" step="5" value="0"></div>
+    </div>
+    <div class="bars" aria-live="polite"><div class="row"><span>理想并行时间</span><div class="track"><div id="parallelBar" class="fill base"></div></div><strong id="parallelValue">--</strong></div><div class="row"><span>加入开销后</span><div class="track"><div id="overheadBar" class="fill overhead"></div></div><strong id="overheadValue">--</strong></div></div>
+    <p class="status" id="parallelStatus">--</p>
+    <table><thead><tr><th>模型层</th><th>它回答的问题</th><th>没有覆盖什么</th></tr></thead><tbody><tr><td>CPU time</td><td>指令数、CPI、频率如何共同决定时间？</td><td>缓存、I/O、系统干扰的具体来源。</td></tr><tr><td>Amdahl</td><td>固定工作量的并行上限是多少？</td><td>通信、同步、负载不均衡的真实曲线。</td></tr><tr><td>Benchmark</td><td>在明确 workload 与规则下实际测到什么？</td><td>不能自动推广到所有应用。</td></tr></tbody></table>
+  </section>
+  <p class="note">这是 teaching illustration，不是任何处理器的 benchmark。它的作用是训练瓶颈分析：先用简单公式定位因素，再用计数器、重复实验和真实 workload 验证。</p>
+</main>
+<script>
+  const get = id => document.getElementById(id);
+  function updateCpu() {
+    const ic=Number(get("ic").value), cpi=Number(get("cpi").value), clock=Number(get("clock").value);
+    get("icOut").textContent=ic.toFixed(1)+" billion"; get("cpiOut").textContent=cpi.toFixed(1); get("clockOut").textContent=clock.toFixed(1)+" GHz";
+    const seconds=ic*cpi/clock; get("cpuBar").style.width=Math.min(100,seconds/16*100)+"%"; get("cpuValue").textContent=seconds.toFixed(2)+" s"; get("cpuStatus").textContent="当前 CPU time 与 IC、CPI 成正比，与 clock rate 成反比。若要优化，先问是哪一个因素占主导，而不是只看 GHz。";
+  }
+  function updateParallel() {
+    const serial=Number(get("serial").value)/100, processors=Number(get("processors").value), communication=Number(get("communication").value)/100;
+    const ideal=serial+(1-serial)/processors; const real=ideal+communication*(processors-1)/processors;
+    get("serialOut").textContent=(serial*100).toFixed(0)+"%"; get("processorsOut").textContent=processors; get("communicationOut").textContent=(communication*100).toFixed(0)+"%";
+    get("parallelBar").style.width=(ideal/1.4*100)+"%"; get("overheadBar").style.width=(real/1.4*100)+"%"; get("parallelValue").textContent=ideal.toFixed(3)+"× baseline"; get("overheadValue").textContent=real.toFixed(3)+"× baseline";
+    const speedup=1/real; get("parallelStatus").textContent="当前实际模型约为 "+speedup.toFixed(2)+"× speedup。串行部分、通信和同步会让增加 processor 的收益递减；Amdahl 是理想下界/上界直觉，真实系统还要测量负载不均衡和内存争用。";
+  }
+  ["ic","cpi","clock"].forEach(id=>get(id).addEventListener("input",updateCpu)); ["serial","processors","communication"].forEach(id=>get(id).addEventListener("input",updateParallel)); get("reset").addEventListener("click",()=>{get("ic").value=1;get("cpi").value=1;get("clock").value=3;get("serial").value=10;get("processors").value=8;get("communication").value=0;updateCpu();updateParallel()}); updateCpu(); updateParallel();
+</script>
+</body>
+</html>

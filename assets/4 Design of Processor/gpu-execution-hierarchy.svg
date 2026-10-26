@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 430" role="img" aria-labelledby="title desc">
+  <title id="title">GPU execution hierarchy 教学重绘</title>
+  <desc id="desc">展示 CUDA grid、block、warp、thread 与 SM 的层级关系，并连接 registers、shared memory 和 global memory。</desc>
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#344054"/></marker></defs>
+  <rect width="1000" height="430" fill="#f8fafc"/>
+  <g font-family="Arial, 'PingFang SC', sans-serif" fill="#172b4d">
+    <text x="500" y="32" text-anchor="middle" font-size="24" font-weight="700">GPU 的工作组织：从任务到硬件</text>
+    <rect x="40" y="70" width="920" height="115" rx="16" fill="#dbeafe" stroke="#344054" stroke-width="2"/><text x="70" y="100" font-size="20" font-weight="700">Grid（整个 kernel 的任务集合）</text>
+    <g fill="#bbf7d0" stroke="#344054" stroke-width="2"><rect x="70" y="120" width="180" height="45" rx="8"/><rect x="270" y="120" width="180" height="45" rx="8"/><rect x="470" y="120" width="180" height="45" rx="8"/><rect x="670" y="120" width="180" height="45" rx="8"/></g><g text-anchor="middle" font-size="16"><text x="160" y="148">Block 0</text><text x="360" y="148">Block 1</text><text x="560" y="148">Block 2</text><text x="760" y="148">Block 3 ...</text></g>
+    <path d="M160 185V230M360 185V230M560 185V230M760 185V230" stroke="#344054" stroke-width="2" marker-end="url(#a)"/>
+    <g fill="#fed7aa" stroke="#344054" stroke-width="2"><rect x="75" y="230" width="170" height="65" rx="10"/><rect x="275" y="230" width="170" height="65" rx="10"/><rect x="475" y="230" width="170" height="65" rx="10"/><rect x="675" y="230" width="170" height="65" rx="10"/></g><g text-anchor="middle" font-size="15"><text x="160" y="256" font-weight="700">SM 0</text><text x="160" y="278">warp + registers</text><text x="360" y="256" font-weight="700">SM 1</text><text x="360" y="278">warp + registers</text><text x="560" y="256" font-weight="700">SM 2</text><text x="560" y="278">warp + registers</text><text x="760" y="256" font-weight="700">SM ...</text><text x="760" y="278">warp + registers</text></g>
+    <path d="M460 295V345M540 295V345M620 295V345" stroke="#344054" stroke-width="2" marker-end="url(#a)"/>
+    <g fill="#ffffff" stroke="#344054" stroke-width="2"><rect x="315" y="345" width="170" height="50" rx="8"/><rect x="515" y="345" width="170" height="50" rx="8"/><rect x="715" y="345" width="170" height="50" rx="8"/></g><g text-anchor="middle" font-size="15"><text x="400" y="375">Registers（最快）</text><text x="600" y="375">Shared memory（块内共享）</text><text x="800" y="375">Global / HBM（容量大、较远）</text></g>
+  </g>
+</svg>
